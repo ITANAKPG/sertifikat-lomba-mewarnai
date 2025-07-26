@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Pembuat Sertifikat Dinamis</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+        }
+        .container-wrapper {
+            max-width: 4xl; /* Equivalent to max-w-4xl */
+            margin-left: auto;
+            margin-right: auto;
+            background-color: #ffffff;
+            padding: 2rem; /* Equivalent to p-8 */
+            border-radius: 0.75rem; /* Equivalent to rounded-xl */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Equivalent to shadow-lg */
+        }
+        .certificate-preview-area {
+            width: 800px; /* Standard certificate width */
+            height: 600px; /* Standard certificate height */
+            position: relative;
+            margin: 2rem auto; /* Center the preview */
+            border: 1px solid #cbd5e0; /* Light border */
+            border-radius: 0.75rem; /* Rounded corners */
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Soft shadow */
+        }
+        .certificate-preview-area img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Ensure image covers the area */
+        }
+        .draggable-name {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%); /* Centered by default */
+            font-size: 4rem;
+            font-weight: 700;
+            color: #333;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+            padding: 10px;
+            line-height: 1.2;
+            word-wrap: break-word;
+            text-align: center;
+            cursor: grab; /* Indicate draggable */
+            user-select: none; /* Prevent text selection during drag */
+            outline: 2px dashed #4c51bf; /* Visual indicator for editable area */
+            outline-offset: 5px;
+            min-width: 100px; /* Minimum width for resizing */
+            min-height: 50px; /* Minimum height for resizing */
+            box-sizing: border-box; /* Include padding and border in element's total width and height */
+        }
+        .resize-handle {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: #4c51bf;
+            border: 2px solid white;
+            border-radius: 50%;
+            z-index: 10;
+        }
+        .resize-handle.top-left { top: -8px; left: -8px; cursor: nwse-resize; }
+        .resize-handle.top-right { top: -8px; right: -8px; cursor: nesw-resize; }
+        .resize-handle.bottom-left { bottom: -8px; left: -8px; cursor: nesw-resize; }
+        .resize-handle.bottom-right { bottom: -8px; right: -8px; cursor: nwse-resize; }
+
+        .input-group label {
+            font-weight: 600;
+            color: #4a5568; /* Darker gray for labels */
+        }
+        .input-group input[type="text"],
+        .input-group textarea,
+        .input-group input[type="number"] {
+            border: 1px solid #cbd5e0; /* Light gray border */
+            border-radius: 8px; /* Rounded input fields */
+            padding: 10px 15px;
+            width: 100%;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05); /* Inner shadow */
+        }
+        .btn-primary {
+            background-color: #4c51bf; /* Indigo primary button */
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 700;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary:hover {
+            background-color: #5a67d8; /* Lighter indigo on hover */
+            transform: translateY(-2px); /* Slight lift effect */
+        }
+        .download-link {
+            background-color: #48bb78; /* Green for download */
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+        }
+        .download-link:hover {
+            background-color: #68d391; /* Lighter green on hover */
+        }
+        .generated-certificate {
+            background-color: #ffffff; /* White background for generated certs */
+            border: 1px solid #e2e8f0; /* Light border */
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+        }
+        .message-box {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #4c51bf;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            display: none; /* Hidden by default */
+            animation: fadeInOut 3s forwards;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+            10% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            90% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+        }
+    </style>
+</head>
+<body class="p-6">
+    <div class="container-wrapper">
+        <h1 class="text-4xl font-bold text-center text-gray-800 mb-8">Sistem Pembuat Sertifikat Dinamis</h1>
+
+        <!-- Removed URL input as template.jpg is now directly referenced -->
+        <p class="text-sm text-gray-600 mb-4 text-center">
+            Template sertifikat dimuat dari <code class="font-mono bg-gray-100 p-1 rounded">template.jpg</code>.
+            Pastikan file <code class="font-mono bg-gray-100 p-1 rounded">template.jpg</code> berada di direktori yang sama dengan file HTML ini saat diunggah ke GitHub.
+        </p>
+
+        <div class="mb-6 input-group">
+            <label for="nameInput" class="block text-sm mb-2">Nama Peserta:</label>
+            <input type="text" id="nameInput" value="Nama Peserta" placeholder="Masukkan nama peserta" class="focus:ring-blue-500 focus:border-blue-500">
+        </div>
+
+        <div class="mb-6 input-group">
+            <label for="nameColor" class="block text-sm mb-2">Warna Teks Nama:</label>
+            <input type="text" id="nameColor" value="#333" placeholder="Contoh: #000000 atau red" class="focus:ring-blue-500 focus:border-blue-500">
+        </div>
+
+        <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Pratinjau Sertifikat (Drag & Resize Nama)</h2>
+        <div id="certificatePreviewArea" class="certificate-preview-area">
+            <!-- Directly reference template.jpg -->
+            <img id="previewTemplate" src="template.jpg" alt="Certificate Template Preview" onerror="this.src='https://placehold.co/800x600/FFCCCC/000000?text=Template+Error'; showMessage('Gagal memuat template.jpg. Pastikan file ada di direktori yang sama.', 'error');">
+            <div id="draggableName" class="draggable-name">Nama Peserta</div>
+            <div class="resize-handle top-left"></div>
+            <div class="resize-handle top-right"></div>
+            <div class="resize-handle bottom-left"></div>
+            <div class="resize-handle bottom-right"></div>
+        </div>
+
+        <div class="mb-8 text-center">
+            <button id="generateBtn" class="btn-primary">Buat Sertifikat</button>
+        </div>
+
+        <div id="loadingIndicator" class="hidden text-center text-blue-600 font-semibold mb-4">
+            Membuat sertifikat... Mohon tunggu.
+        </div>
+
+        <div id="certificateOutput" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Generated certificates will be appended here -->
+        </div>
+    </div>
+
+    <div id="messageBox" class="message-box"></div>
+
+    <!-- html2canvas library for capturing DOM elements as images -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <script>
+        // Function to show a temporary message box
+        function showMessage(message, type = 'info') {
+            const messageBox = document.getElementById('messageBox');
+            messageBox.textContent = message;
+            messageBox.style.display = 'block';
+            if (type === 'error') {
+                messageBox.style.backgroundColor = '#dc2626'; // Red
+            } else if (type === 'success') {
+                messageBox.style.backgroundColor = '#16a34a'; // Green
+            } else {
+                messageBox.style.backgroundColor = '#4c51bf'; // Default indigo
+            }
+            setTimeout(() => {
+                messageBox.style.display = 'none';
+            }, 3000); // Hide after 3 seconds
+        }
+
+        const nameInput = document.getElementById('nameInput');
+        const nameColorInput = document.getElementById('nameColor');
+        const previewTemplate = document.getElementById('previewTemplate');
+        const draggableName = document.getElementById('draggableName');
+        const certificateOutput = document.getElementById('certificateOutput');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const generateBtn = document.getElementById('generateBtn');
+        const previewArea = document.getElementById('certificatePreviewArea');
+
+        // Initialize draggable name text and color
+        draggableName.textContent = nameInput.value;
+        draggableName.style.color = nameColorInput.value;
+
+        // --- Live Update for Name and Color ---
+        nameInput.addEventListener('input', () => {
+            draggableName.textContent = nameInput.value;
+        });
+
+        nameColorInput.addEventListener('input', () => {
+            draggableName.style.color = nameColorInput.value;
+        });
+
+        // --- Drag and Resize Logic ---
+        let isDragging = false;
+        let isResizing = false;
+        let activeHandle = null;
+        let initialX, initialY; // Mouse position when drag/resize starts
+        let xOffset = 0, yOffset = 0; // Offset of element from its parent
+        let initialWidth, initialHeight, initialFontSize;
+
+        // Get bounding box of the preview area to constrain dragging
+        let previewRect;
+
+        function getPreviewRect() {
+            previewRect = previewArea.getBoundingClientRect();
+        }
+        window.addEventListener('resize', getPreviewRect);
+        window.addEventListener('load', getPreviewRect); // Get on load
+
+        draggableName.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // Prevent text selection
+            getPreviewRect(); // Update preview area bounds
+
+            if (e.target.classList.contains('resize-handle')) {
+                isResizing = true;
+                activeHandle = e.target.classList[1]; // e.g., 'top-left'
+                initialX = e.clientX;
+                initialY = e.clientY;
+                initialWidth = draggableName.offsetWidth;
+                initialHeight = draggableName.offsetHeight;
+                initialFontSize = parseFloat(window.getComputedStyle(draggableName).fontSize);
+            } else {
+                isDragging = true;
+                initialX = e.clientX;
+                initialY = e.clientY;
+                // Calculate offset relative to the draggable element's top-left corner
+                const rect = draggableName.getBoundingClientRect();
+                xOffset = e.clientX - rect.left;
+                yOffset = e.clientY - rect.top;
+
+                draggableName.style.cursor = 'grabbing';
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                let newX = e.clientX - xOffset;
+                let newY = e.clientY - yOffset;
+
+                // Constrain to parent (previewArea) bounds
+                const minX = previewRect.left;
+                const minY = previewRect.top;
+                const maxX = previewRect.right - draggableName.offsetWidth;
+                const maxY = previewRect.bottom - draggableName.offsetHeight;
+
+                // Adjust newX, newY to be relative to the previewArea's top-left corner
+                let relativeX = newX - previewRect.left;
+                let relativeY = newY - previewRect.top;
+
+                // Apply constraints
+                relativeX = Math.max(0, Math.min(relativeX, previewArea.offsetWidth - draggableName.offsetWidth));
+                relativeY = Math.max(0, Math.min(relativeY, previewArea.offsetHeight - draggableName.offsetHeight));
+
+                draggableName.style.left = `${relativeX}px`;
+                draggableName.style.top = `${relativeY}px`;
+                draggableName.style.transform = 'none'; // Remove transform for direct positioning
+            } else if (isResizing) {
+                let dx = e.clientX - initialX;
+                let dy = e.clientY - initialY;
+
+                let newWidth = initialWidth;
+                let newHeight = initialHeight;
+                let newFontSize = initialFontSize;
+
+                // Calculate new width/height based on handle
+                switch (activeHandle) {
+                    case 'bottom-right':
+                        newWidth = initialWidth + dx;
+                        newHeight = initialHeight + dy;
+                        break;
+                    case 'bottom-left':
+                        newWidth = initialWidth - dx;
+                        newHeight = initialHeight + dy;
+                        draggableName.style.left = `${parseFloat(draggableName.style.left) + dx}px`;
+                        break;
+                    case 'top-right':
+                        newWidth = initialWidth + dx;
+                        newHeight = initialHeight - dy;
+                        draggableName.style.top = `${parseFloat(draggableName.style.top) + dy}px`;
+                        break;
+                    case 'top-left':
+                        newWidth = initialWidth - dx;
+                        newHeight = initialHeight - dy;
+                        draggableName.style.left = `${parseFloat(draggableName.style.left) + dx}px`;
+                        draggableName.style.top = `${parseFloat(draggableName.style.top) + dy}px`;
+                        break;
+                }
+
+                // Apply minimum size constraints
+                newWidth = Math.max(100, newWidth);
+                newHeight = Math.max(50, newHeight);
+
+                draggableName.style.width = `${newWidth}px`;
+                draggableName.style.height = `${newHeight}px`;
+
+                // Adjust font size proportionally (simple approach)
+                newFontSize = initialFontSize * (newWidth / initialWidth);
+                // Clamp font size to reasonable limits
+                newFontSize = Math.max(20, Math.min(120, newFontSize));
+                draggableName.style.fontSize = `${newFontSize}px`;
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            isResizing = false;
+            activeHandle = null;
+            draggableName.style.cursor = 'grab'; // Reset cursor
+        });
+
+        // --- Generate Certificate Button ---
+        generateBtn.addEventListener('click', async () => {
+            // Template URL is now fixed to 'template.jpg'
+            const name = nameInput.value.trim();
+            const nameColor = nameColorInput.value;
+
+            certificateOutput.innerHTML = ''; // Clear previous certificates
+
+            if (!name) {
+                showMessage('Nama Peserta tidak boleh kosong.', 'error');
+                return;
+            }
+
+            loadingIndicator.classList.remove('hidden'); // Show loading indicator
+
+            // Get current styles from the draggable name element
+            const currentNameTop = draggableName.style.top;
+            const currentNameLeft = draggableName.style.left;
+            const currentNameFontSize = draggableName.style.fontSize;
+            const currentNameWidth = draggableName.style.width;
+            const currentNameHeight = draggableName.style.height;
+            const currentNameTransform = draggableName.style.transform; // Capture transform if any
+
+            // Create a temporary container for html2canvas to render
+            const tempContainer = document.createElement('div');
+            tempContainer.className = 'certificate-container'; // Use a class for consistent styling
+            tempContainer.style.width = '800px'; // Fixed width for rendering
+            tempContainer.style.height = '600px'; // Fixed height for rendering
+            tempContainer.style.position = 'relative';
+            tempContainer.style.backgroundImage = `url('template.jpg')`; // Directly reference template.jpg
+            tempContainer.style.backgroundSize = 'cover';
+            tempContainer.style.backgroundPosition = 'center';
+            tempContainer.style.overflow = 'hidden';
+            tempContainer.style.margin = '0';
+            tempContainer.style.boxShadow = 'none';
+            tempContainer.style.flexShrink = '0';
+
+            // Add an error handler for the background image
+            const img = new Image();
+            img.src = 'template.jpg'; // Directly reference template.jpg
+            img.onerror = () => {
+                showMessage(`Gagal memuat template.jpg. Pastikan file ada di direktori yang sama.`, 'error');
+                tempContainer.style.backgroundImage = `url('https://placehold.co/800x600/FFCCCC/000000?text=Template+Error')`; // Fallback
+            };
+
+            const nameElementForCapture = document.createElement('div');
+            nameElementForCapture.className = 'certificate-name'; // Use the original name class for styling
+            nameElementForCapture.textContent = name;
+            nameElementForCapture.style.color = nameColor;
+            // Apply the captured styles
+            nameElementForCapture.style.top = currentNameTop;
+            nameElementForCapture.style.left = currentNameLeft;
+            nameElementForCapture.style.fontSize = currentNameFontSize;
+            nameElementForCapture.style.width = currentNameWidth;
+            nameElementForCapture.style.height = currentNameHeight;
+            nameElementForCapture.style.transform = currentNameTransform; // Apply transform if it was used
+
+            tempContainer.appendChild(nameElementForCapture);
+            document.body.appendChild(tempContainer); // Append to body temporarily for html2canvas
+
+            try {
+                const canvas = await html2canvas(tempContainer, {
+                    scale: 2, // Higher resolution
+                    useCORS: true, // Enable CORS
+                    logging: false // Disable logging
+                });
+
+                const imgData = canvas.toDataURL('image/png');
+
+                const generatedCertDiv = document.createElement('div');
+                generatedCertDiv.className = 'generated-certificate flex flex-col items-center';
+
+                const imgElement = document.createElement('img');
+                imgElement.src = imgData;
+                imgElement.alt = `Sertifikat untuk ${name}`;
+                imgElement.className = 'w-full h-auto rounded-lg mb-4';
+
+                const downloadLink = document.createElement('a');
+                downloadLink.href = imgData;
+                downloadLink.download = `sertifikat_${name.replace(/\s+/g, '_').toLowerCase()}.png`;
+                downloadLink.textContent = `Unduh Sertifikat ${name}`;
+                downloadLink.className = 'download-link';
+
+                generatedCertDiv.appendChild(imgElement);
+                generatedCertDiv.appendChild(downloadLink);
+                certificateOutput.appendChild(generatedCertDiv);
+
+            } catch (error) {
+                console.error('Error generating certificate for', name, ':', error);
+                showMessage(`Gagal membuat sertifikat untuk ${name}. Coba lagi.`, 'error');
+            } finally {
+                document.body.removeChild(tempContainer); // Remove temporary container
+            }
+
+            loadingIndicator.classList.add('hidden');
+            showMessage('Sertifikat berhasil dibuat!', 'success');
+        });
+    </script>
+</body>
+</html>
